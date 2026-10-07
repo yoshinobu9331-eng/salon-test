@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Salon Reserve - 予約・カルテ管理</title>
+  
+  <meta name="theme-color" content="#14b8a6">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SalonReserve">
+  <link rel="apple-touch-icon" href="data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27192%27%20height%3D%27192%27%3E%3Crect%20width%3D%27192%27%20height%3D%27192%27%20fill%3D%27%2314b8a6%27%2F%3E%3Ctext%20x%3D%2750%25%27%20y%3D%2750%25%27%20font-size%3D%2780%27%20text-anchor%3D%27middle%27%20dy%3D%27.3em%27%20fill%3D%27white%27%3ES%3C%2Ftext%3E%3C%2Fsvg%3E">
+  <link rel="manifest" id="manifest-link">
+  
+  <script>
+    // 動的にマニフェストを生成 (単一ファイル制約への対応)
+    const manifest = {
+      "name": "Salon Reserve - 予約・カルテ管理",
+      "short_name": "SalonApp",
+      "start_url": ".",
+      "display": "standalone",
+      "background_color": "#f8fafc",
+      "theme_color": "#14b8a6",
+      "icons": [{
+        "src": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27192%27%20height%3D%27192%27%3E%3Crect%20width%3D%27192%27%20height%3D%27192%27%20fill%3D%27%2314b8a6%27%2F%3E%3Ctext%20x%3D%2750%25%27%20y%3D%2750%25%27%20font-size%3D%2780%27%20text-anchor%3D%27middle%27%20dy%3D%27.3em%27%20fill%3D%27white%27%3ES%3C%2Ftext%3E%3C%2Fsvg%3E",
+        "sizes": "192x192",
+        "type": "image/svg+xml"
+      }]
+    };
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('manifest-link').href = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
+    });
+  </script>
+
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdfa',
+              100: '#ccfbf1',
+              500: '#14b8a6', // Teal 500
+              600: '#0d9488', // Teal 600
+              700: '#0f766e', // Teal 700
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'Noto Sans JP', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #f8fafc; /* slate-50 */
+      color: #334155; /* slate-700 */
+      -webkit-tap-highlight-color: transparent;
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .fade-in { animation: fadeIn 0.2s ease-in-out; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    const TODAY = '2026-10-07';
+
+    const initialServices = [
+      { id: 's1', category: 'Cut', name: 'デザインカット', price: 5500, duration: 60 },
+      { id: 's2', category: 'Cut', name: 'メンズカット', price: 5000, duration: 60 },
+      { id: 's3', category: 'Color', name: 'オーガニックカラー', price: 7700, duration: 90 },
+      { id: 's4', category: 'Color', name: 'イルミナカラー', price: 8800, duration: 90 },
+      { id: 's5', category: 'Perm', name: 'デジタルパーマ', price: 12000, duration: 120 },
+      { id: 's6', category: 'Treatment', name: 'システムトリートメント', price: 4400, duration: 30 },
+    ];
+
+    const initialCustomers = [
+      { id: 'c1', name: '田中 美咲', kana: 'タナカ ミサキ', phone: '090-1234-5678', lastVisit: '2026-09-15', note: '頭皮が敏感' },
+      { id: 'c2', name: '佐藤 健太', kana: 'サトウ ケンタ', phone: '080-9876-5432', lastVisit: '2026-08-20', note: 'いつも短め' },
+      { id: 'c3', name: '鈴木 愛', kana: 'スズキ アイ', phone: '090-1111-2222', lastVisit: '2026-10-01', note: '' },
+      { id: 'c4', name: '高橋 翔太', kana: 'タカハシ ショウタ', phone: '090-3333-4444', lastVisit: '2026-07-10', note: '' },
+    ];
+
+    const initialReservations = [
+      { id: 'r1', customerId: 'c1', date: TODAY, time: '10:00', serviceIds: ['s1', 's3'], status: 'confirmed' },
+      { id: 'r2', customerId: 'c3', date: TODAY, time: '13:00', serviceIds: ['s1', 's6'], status: 'confirmed' },
+      { id: 'r3', customerId: 'c2', date: '2026-10-08', time: '11:00', serviceIds: ['s2'], status: 'confirmed' },
+      { id: 'r4', customerId: 'c4', date: '2026-10-09', time: '15:00', serviceIds: ['s2', 's5'], status: 'confirmed' },
+    ];
+
+    const initialKartes = [
+      { id: 'k1', customerId: 'c1', reservationId: 'old_r1', date: '2026-09-15', content: '毛先を5cmカットし、レイヤーを入れて軽さを出しました。カラーはアッシュ系の7トーン。', memo: 'カラー剤A 7-AS オキシ6%', photos: [] },
+      { id: 'k2', customerId: 'c2', reservationId: 'old_r2', date: '2026-08-20', content: 'ツーブロック。サイドは6mm。トップは動きが出るようにチョップカット。', memo: 'ハードワックス仕上げ', photos: [] },
+    ];
+
+    const formatCurrency = (amount) => new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(amount);
+    const formatDate = (dateStr) => {
+      const d = new Date(dateStr);
+      const days = ['日', '月', '火', '水', '木', '金', '土'];
+      return `${d.getMonth() + 1}月${d.getDate()}日(${days[d.getDay()]})`;
+    };
+    const generateId = () => Math.random().toString(36).substr(2, 9);
+
+    const Card = ({ children, className = '', onClick }) => (
+      <div 
+        onClick={onClick} 
+        className={`bg-white rounded-2xl p-4 shadow-sm border border-slate-100 ${onClick ? 'cursor-pointer active:scale-[0.98] transition-transform' : ''} ${className}`}
+      >
+        {children}
+      </div>
+    );
+
+    const Button = ({ children, variant = 'primary', className = '', ...props }) => {
+      const baseStyle = "font-medium rounded-xl px-4 py-3 transition-colors text-center w-full focus:outline-none";
+      const variants = {
+        primary: "bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800 shadow-sm",
+        secondary: "bg-slate-100 text-slate-700 hover:bg-slate-200 active:bg-slate-300",
+        outline: "border-2 border-brand-600 text-brand-600 hover:bg-brand-50 active:bg-brand-100",
+        danger: "bg-red-50 text-red-600 hover:bg-red-100 active:bg-red-200"
+      };
+      return (
+        <button className={`${baseStyle} ${variants[variant]} ${className}`} {...props}>
+          {children}
+        </button>
+      );
+    };
+
+    const Input = ({ label, ...props }) => (
+      <div className="mb-4">
+        {label && <label className="block text-sm font-medium text-slate-600 mb-1">{label}</label>}
+        <input 
+          className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition-all"
+          {...props} 
+        />
+      </div>
+    );
+
+    const Textarea = ({ label, ...props }) => (
+      <div className="mb-4">
+        {label && <label className="block text-sm font-medium text-slate-600 mb-1">{label}</label>}
+        <textarea 
+          className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition-all"
+          rows="4"
+          {...props} 
+        ></textarea>
+      </div>
+    );
+
+    const Header = ({ title, onBack, rightElement }) => (
+      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 px-4 py-4 flex items-center justify-between">
+        <div className="flex items-center">
+          {onBack && (
+            <button onClick={onBack} className="mr-3 w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-600">
+              <i className="fa-solid fa-chevron-left"></i>
+            </button>
+          )}
+          <h1 className="text-xl font-bold text-slate-800">{title}</h1>
+        </div>
+        <div>{rightElement}</div>
+      </header>
+    );
+
+    const FAB = ({ onClick, icon = 'fa-plus' }) => (
+      <button 
+        onClick={onClick}
+        className="fixed bottom-20 md:bottom-8 right-6 w-14 h-14 bg-brand-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-brand-700 active:scale-95 transition-all z-40"
+      >
+        <i className={`fa-solid ${icon}`}></i>
+      </button>
+    );
+
+    const HomeView = ({ reservations, customers, services, navigate }) => {
+      const todaysReservations = reservations
+        .filter(r => r.date === TODAY)
+        .sort((a, b) => a.time.localeCompare(b.time));
+
+      const todaysSales = todaysReservations.reduce((total, res) => {
+        const resServices = res.serviceIds.map(id => services.find(s => s.id === id)).filter(Boolean);
+        return total + resServices.reduce((sum, s) => sum + s.price, 0);
+      }, 0);
+
+      return (
+        <div className="fade-in pb-8">
+          <Header title="ホーム" />
+          <div className="p-4 space-y-6">
+            
+            <div className="flex space-x-4">
+              <Card className="flex-1 bg-gradient-to-br from-brand-500 to-brand-700 text-white border-none shadow-md">
+                <div className="text-brand-100 text-sm mb-1">本日の予約</div>
+                <div className="text-3xl font-bold">{todaysReservations.length} <span className="text-lg font-normal">件</span></div>
+              </Card>
+              <Card className="flex-1">
+                <div className="text-slate-500 text-sm mb-1">想定売上</div>
+                <div className="text-2xl font-bold text-slate-800">{formatCurrency(todaysSales)}</div>
+              </Card>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center">
+                <i className="fa-regular fa-calendar-check text-brand-600 mr-2"></i>今日のスケジュール
+              </h2>
+              {todaysReservations.length === 0 ? (
+                <div className="text-center text-slate-500 py-8 bg-white rounded-2xl border border-slate-100">
+                  今日の予約はありません
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {todaysReservations.map(res => {
+                    const customer = customers.find(c => c.id === res.customerId);
+                    const resServices = res.serviceIds.map(id => services.find(s => s.id === id)).filter(Boolean);
+                    
+                    return (
+                      <Card key={res.id} onClick={() => navigate('customer_detail', { id: customer?.id })} className="flex items-center relative overflow-hidden">
+                        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-brand-500"></div>
+                        <div className="w-16 font-bold text-lg text-slate-700 shrink-0 pl-2">{res.time}</div>
+                        <div className="flex-1 pl-2 border-l border-slate-100">
+                          <div className="font-bold text-slate-800 text-lg">{customer?.name || '不明な顧客'}</div>
+                          <div className="text-sm text-slate-500 mt-1 truncate">
+                            {resServices.map(s => s.name).join(', ')}
+                          </div>
+                        </div>
+                        <div className="text-slate-400 pl-2">
+                          <i className="fa-solid fa-chevron-right"></i>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const ReservationsView = ({ reservations, customers, services, navigate }) => {
+      const [selectedDate, setSelectedDate] = useState(TODAY);
+
+      // Generate next 14 days
+      const dates = useMemo(() => {
+        const result = [];
+        const d = new Date(TODAY);
+        for(let i=0; i<14; i++) {
+          const dateStr = d.toISOString().split('T')[0];
+          const dayName = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+          result.push({ date: dateStr, dayName, day: d.getDate(), isWeekend: d.getDay()===0||d.getDay()===6 });
+          d.setDate(d.getDate() + 1);
+        }
+        return result;
+      }, []);
+
+      const dailyReservations = reservations
+        .filter(r => r.date === selectedDate)
+        .sort((a, b) => a.time.localeCompare(b.time));
+
+      return (
+        <div className="fade-in h-full flex flex-col">
+          <Header title="予約一覧" />
+          
+          <div className="bg-white border-b border-slate-100 py-3">
+            <div className="flex overflow-x-auto no-scrollbar px-4 space-x-2 pb-1">
+              {dates.map((d) => {
+                const isSelected = selectedDate === d.date;
+                return (
+                  <button
+                    key={d.date}
+                    onClick={() => setSelectedDate(d.date)}
+                    className={`flex flex-col items-center justify-center min-w-[60px] h-[72px] rounded-2xl transition-colors ${
+                      isSelected ? 'bg-brand-600 text-white shadow-md' : 'bg-slate-50 text-slate-600 border border-slate-100'
+                    }`}
+                  >
+                    <span className="text-xs font-medium mb-1">{d.dayName}</span>
+                    <span className="text-xl font-bold">{d.day}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="p-4 flex-1 overflow-y-auto">
+            <h2 className="text-sm font-medium text-slate-500 mb-3">{formatDate(selectedDate)} の予約</h2>
+            {dailyReservations.length === 0 ? (
+              <div className="text-center text-slate-400 py-12 flex flex-col items-center">
+                <i className="fa-regular fa-calendar-xmark text-4xl mb-3 opacity-50"></i>
+                <p>予約はありません</p>
+              </div>
+            ) : (
+              <div className="space-y-3 pb-16">
+                {dailyReservations.map(res => {
+                  const customer = customers.find(c => c.id === res.customerId);
+                  const resServices = res.serviceIds.map(id => services.find(s => s.id === id)).filter(Boolean);
+                  
+                  return (
+                    <Card key={res.id} onClick={() => navigate('customer_detail', { id: customer?.id })}>
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center">
+                          <span className="bg-slate-100 text-slate-700 font-bold px-3 py-1 rounded-lg mr-3">{res.time}</span>
+                          <span className="font-bold text-lg">{customer?.name || '不明'}</span>
+                        </div>
+                        <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-md font-medium border border-green-100">確定</span>
+                      </div>
+                      <div className="text-sm text-slate-500 ml-[72px]">
+                        {resServices.map(s => s.name).join(', ')}
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          
+          <FAB onClick={() => navigate('reservation_create', { date: selectedDate })} />
+        </div>
+      );
+    };
+
+    const ReservationCreateView = ({ date, customers, services, onSave, navigate }) => {
+      const [formData, setFormData] = useState({
+        customerId: '',
+        date: date || TODAY,
+        time: '10:00',
+        serviceIds: []
+      });
+
+      const handleServiceToggle = (id) => {
+        setFormData(prev => ({
+          ...prev,
+          serviceIds: prev.serviceIds.includes(id) 
+            ? prev.serviceIds.filter(sId => sId !== id)
+            : [...prev.serviceIds, id]
+        }));
+      };
+
+      const handleSubmit = () => {
+        if (!formData.customerId || formData.serviceIds.length === 0) {
+          alert('顧客とメニューを選択してください');
+          return;
+        }
+        onSave({
+          id: 'r_' + generateId(),
+          ...formData,
+          status: 'confirmed'
+        });
+        navigate('reservations');
+      };
+
+      const times = Array.from({length: 20}, (_, i) => {
+        const h = Math.floor(i / 2) + 10;
+        const m = i % 2 === 0 ? '00' : '30';
+        return `${h}:${m}`;
+      });
+
+      return (
+        <div className="fade-in bg-white min-h-full">
+          <Header title="新しい予約" onBack={() => navigate('reservations')} />
+          <div className="p-4 space-y-6 pb-24">
+            
+            <section>
+              <label className="block text-sm font-bold text-slate-700 mb-2">顧客を選択</label>
+              <select 
+                className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl px-4 py-3 focus:ring-2 focus:ring-brand-500"
+                value={formData.customerId}
+                onChange={e => setFormData({...formData, customerId: e.target.value})}
+              >
+                <option value="">-- 選択してください --</option>
+                {customers.map(c => <option key={c.id} value={c.id}>{c.name} ({c.kana})</option>)}
+              </select>
+            </section>
+
+            <div className="flex space-x-4">
+              <section className="flex-1">
+                <Input label="日付" type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
+              </section>
+              <section className="flex-1">
+                <label className="block text-sm font-medium text-slate-600 mb-1">時間</label>
+                <select 
+                  className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl px-4 py-3"
+                  value={formData.time}
+                  onChange={e => setFormData({...formData, time: e.target.value})}
+                >
+                  {times.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </section>
+            </div>
+
+            <section>
+              <label className="block text-sm font-bold text-slate-700 mb-2">メニューを選択</label>
+              <div className="space-y-2">
+                {services.map(s => (
+                  <label key={s.id} className={`flex items-center p-3 rounded-xl border cursor-pointer transition-colors ${formData.serviceIds.includes(s.id) ? 'bg-brand-50 border-brand-500' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                    <input 
+                      type="checkbox" 
+                      className="w-5 h-5 text-brand-600 rounded border-gray-300 focus:ring-brand-500"
+                      checked={formData.serviceIds.includes(s.id)}
+                      onChange={() => handleServiceToggle(s.id)}
+                    />
+                    <div className="ml-3 flex-1">
+                      <div className="font-medium">{s.name}</div>
+                      <div className="text-sm text-slate-500">{formatCurrency(s.price)} / {s.duration}分</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </section>
+
+          </div>
+          <div className="fixed bottom-0 md:bottom-auto w-full md:w-auto md:min-w-[400px] bg-white border-t border-slate-100 p-4 pb-8 md:pb-4 z-50">
+            <Button onClick={handleSubmit}>予約を登録する</Button>
+          </div>
+        </div>
+      );
+    };
+
+    const ServicesView = ({ services }) => {
+      const categories = [...new Set(services.map(s => s.category))];
+
+      return (
+        <div className="fade-in pb-8">
+          <Header title="施術メニュー" />
+          <div className="p-4 space-y-6">
+            {categories.map(cat => (
+              <div key={cat}>
+                <h2 className="text-lg font-bold text-brand-700 mb-3 border-b border-brand-100 pb-1">{cat}</h2>
+                <div className="space-y-3">
+                  {services.filter(s => s.category === cat).map(s => (
+                    <Card key={s.id} className="flex justify-between items-center">
+                      <div>
+                        <div className="font-bold text-slate-800">{s.name}</div>
+                        <div className="text-sm text-slate-500 mt-1"><i className="fa-regular fa-clock mr-1"></i>{s.duration}分</div>
+                      </div>
+                      <div className="font-bold text-lg text-slate-700">{formatCurrency(s.price)}</div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    const CustomersView = ({ customers, navigate }) => {
+      const [searchQuery, setSearchQuery] = useState('');
+
+      const filteredCustomers = customers.filter(c => 
+        c.name.includes(searchQuery) || c.kana.includes(searchQuery) || c.phone.includes(searchQuery)
+      );
+
+      return (
+        <div className="fade-in pb-8 h-full flex flex-col">
+          <Header title="顧客一覧" />
+          <div className="p-4 bg-white border-b border-slate-100 sticky top-16 z-30">
+            <div className="relative">
+              <i className="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+              <input 
+                type="text" 
+                placeholder="名前、カナ、電話番号で検索..." 
+                className="w-full bg-slate-100 border-transparent rounded-full py-3 pl-12 pr-4 focus:bg-white focus:border-brand-300 focus:ring-2 focus:ring-brand-200 transition-all outline-none"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
+          
+          <div className="p-4 space-y-2 flex-1 overflow-y-auto">
+            {filteredCustomers.length === 0 ? (
+              <div className="text-center text-slate-400 py-8">該当する顧客が見つかりません</div>
+            ) : (
+              filteredCustomers.map(c => (
+                <Card key={c.id} onClick={() => navigate('customer_detail', { id: c.id })} className="flex items-center">
+                  <div className="w-12 h-12 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center font-bold text-lg mr-4 shrink-0">
+                    {c.name.charAt(0)}
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-slate-800">{c.name}</div>
+                    <div className="text-xs text-slate-400">{c.kana}</div>
+                  </div>
+                  <div className="text-right text-xs text-slate-500">
+                    <div>最終来店</div>
+                    <div className="font-medium text-slate-700">{c.lastVisit.replace(/-/g, '/')}</div>
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const CustomerDetailView = ({ id, customers, reservations, kartes, services, navigate }) => {
+      const customer = customers.find(c => c.id === id);
+      const [activeTab, setActiveTab] = useState('karte'); // 'karte' or 'history'
+
+      if (!customer) return <div>Customer not found</div>;
+
+      const customerReservations = reservations
+        .filter(r => r.customerId === id)
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      const customerKartes = kartes
+        .filter(k => k.customerId === id)
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      return (
+        <div className="fade-in pb-20 md:pb-8 bg-slate-50 min-h-full">
+          <Header title="顧客詳細" onBack={() => navigate('customers')} />
+          
+          <div className="bg-white px-4 py-6 border-b border-slate-200 flex flex-col items-center shadow-sm relative z-10">
+            <div className="w-20 h-20 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center font-bold text-3xl mb-3">
+              {customer.name.charAt(0)}
+            </div>
+            <h2 className="text-2xl font-bold text-slate-800">{customer.name}</h2>
+            <div className="text-sm text-slate-400 mb-4">{customer.kana}</div>
+            
+            <div className="w-full grid grid-cols-2 gap-4 text-sm mt-2">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center">
+                <i className="fa-solid fa-phone text-slate-400 mr-2"></i> {customer.phone}
+              </div>
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center">
+                <i className="fa-solid fa-clock-rotate-left text-slate-400 mr-2"></i> {customer.lastVisit.replace(/-/g, '/')}
+              </div>
+            </div>
+            {customer.note && (
+              <div className="w-full mt-4 bg-yellow-50 p-3 rounded-xl border border-yellow-100 text-sm text-yellow-800">
+                <i className="fa-solid fa-circle-info mr-1"></i> {customer.note}
+              </div>
+            )}
+          </div>
+
+          <div className="sticky top-[72px] bg-slate-50 z-20 px-4 pt-4 pb-2 border-b border-slate-200">
+            <div className="flex bg-white rounded-xl p-1 shadow-sm border border-slate-100">
+              <button 
+                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${activeTab === 'karte' ? 'bg-brand-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+                onClick={() => setActiveTab('karte')}
+              >
+                カルテ履歴
+              </button>
+              <button 
+                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${activeTab === 'history' ? 'bg-brand-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+                onClick={() => setActiveTab('history')}
+              >
+                予約履歴
+              </button>
+            </div>
+          </div>
+
+          <div className="p-4">
+            {activeTab === 'karte' && (
+              <div className="space-y-4">
+                <Button onClick={() => navigate('karte_create', { customerId: customer.id })} icon="fa-plus">
+                  <i className="fa-solid fa-pen-to-square mr-2"></i>カルテを作成する
+                </Button>
+                
+                {customerKartes.length === 0 ? (
+                  <div className="text-center text-slate-400 py-8">カルテがありません</div>
+                ) : (
+                  customerKartes.map(karte => (
+                    <Card key={karte.id} onClick={() => navigate('karte_detail', { id: karte.id })} className="relative overflow-hidden">
+                      <div className="absolute top-0 left-0 w-full h-1 bg-brand-500"></div>
+                      <div className="flex justify-between items-center mb-3 mt-1">
+                        <div className="font-bold text-slate-700 flex items-center">
+                          <i className="fa-regular fa-calendar mr-2 text-brand-600"></i>
+                          {formatDate(karte.date)}
+                        </div>
+                      </div>
+                      <p className="text-sm text-slate-600 line-clamp-2 mb-2">{karte.content}</p>
+                      {karte.memo && (
+                         <div className="text-xs bg-slate-100 p-2 rounded text-slate-500 mt-2 truncate">
+                           <i className="fa-solid fa-tag mr-1"></i>{karte.memo}
+                         </div>
+                      )}
+                    </Card>
+                  ))
+                )}
+              </div>
+            )}
+
+            {activeTab === 'history' && (
+              <div className="space-y-3">
+                {customerReservations.length === 0 ? (
+                  <div className="text-center text-slate-400 py-8">予約履歴がありません</div>
+                ) : (
+                  customerReservations.map(res => {
+                    const resServices = res.serviceIds.map(sid => services.find(s => s.id === sid)).filter(Boolean);
+                    return (
+                      <Card key={res.id}>
+                        <div className="flex justify-between items-center mb-2">
+                          <div className="font-bold">{formatDate(res.date)} {res.time}</div>
+                        </div>
+                        <div className="text-sm text-slate-600">
+                          {resServices.map(s => s.name).join(', ')}
+                        </div>
+                      </Card>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const KarteCreateView = ({ customerId, customers, onSave, navigate }) => {
+      const customer = customers.find(c => c.id === customerId);
+      const [formData, setFormData] = useState({
+        content: '',
+        memo: '',
+        date: TODAY
+      });
+
+      const handleSubmit = () => {
+        if (!formData.content) {
+          alert('施術内容を入力してください');
+          return;
+        }
+        onSave({
+          id: 'k_' + generateId(),
+          customerId,
+          photos: [],
+          ...formData
+        });
+        navigate('customer_detail', { id: customerId });
+      };
+
+      return (
+        <div className="fade-in bg-white min-h-full pb-24">
+          <Header title="カルテ作成" onBack={() => navigate('customer_detail', { id: customerId })} />
+          <div className="p-4 space-y-4">
+            <div className="bg-brand-50 text-brand-800 p-3 rounded-xl border border-brand-100 flex items-center mb-4">
+              <i className="fa-solid fa-user mr-2"></i>
+              <span className="font-bold">{customer?.name}</span> 様のカルテ
+            </div>
+
+            <Input label="施術日" type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
+            
+            <Textarea 
+              label="施術内容 (仕上がり・カウンセリング内容など)" 
+              placeholder="毛先を5cmカット、カラーは..."
+              value={formData.content} 
+              onChange={e => setFormData({...formData, content: e.target.value})}
+              rows="6"
+            />
+            
+            <Textarea 
+              label="使用薬剤・社内メモ" 
+              placeholder="カラー剤のレシピや注意事項など"
+              value={formData.memo} 
+              onChange={e => setFormData({...formData, memo: e.target.value})}
+              className="bg-yellow-50"
+              rows="3"
+            />
+
+            <div>
+              <label className="block text-sm font-medium text-slate-600 mb-2">写真</label>
+              <div className="flex space-x-2 overflow-x-auto no-scrollbar pb-2">
+                <button className="w-24 h-24 shrink-0 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:bg-slate-50 transition-colors">
+                  <i className="fa-solid fa-camera text-xl mb-1"></i>
+                  <span className="text-xs font-medium">追加</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+          <div className="fixed bottom-0 md:bottom-auto w-full md:w-auto md:min-w-[400px] bg-white border-t border-slate-100 p-4 pb-8 md:pb-4 z-50">
+            <Button onClick={handleSubmit}>カルテを保存する</Button>
+          </div>
+        </div>
+      );
+    };
+
+    const KarteDetailView = ({ id, kartes, customers, navigate }) => {
+      const karte = kartes.find(k => k.id === id);
+      if (!karte) return <div>Not found</div>;
+      const customer = customers.find(c => c.id === karte.customerId);
+
+      return (
+        <div className="fade-in bg-white min-h-full">
+          <Header title="カルテ詳細" onBack={() => navigate('customer_detail', { id: karte.customerId })} />
+          <div className="p-4 space-y-6">
+            
+            <div className="border-b border-slate-100 pb-4">
+              <div className="text-sm text-slate-500 mb-1">{formatDate(karte.date)}</div>
+              <div className="text-xl font-bold text-slate-800 flex items-center">
+                <i className="fa-solid fa-user-circle text-brand-600 mr-2"></i>
+                {customer?.name}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-bold text-slate-400 mb-2">施術内容</h3>
+              <div className="text-slate-800 whitespace-pre-wrap leading-relaxed bg-slate-50 p-4 rounded-2xl">
+                {karte.content}
+              </div>
+            </div>
+
+            {karte.memo && (
+              <div>
+                <h3 className="text-sm font-bold text-slate-400 mb-2">使用薬剤・メモ</h3>
+                <div className="text-slate-700 whitespace-pre-wrap bg-yellow-50 p-4 rounded-2xl border border-yellow-100">
+                  {karte.memo}
+                </div>
+              </div>
+            )}
+
+            {/* Mock Photos Area */}
+            <div>
+              <h3 className="text-sm font-bold text-slate-400 mb-2">写真</h3>
+              <div className="flex space-x-3 overflow-x-auto no-scrollbar">
+                 <div className="w-32 h-32 bg-slate-200 rounded-xl flex items-center justify-center text-slate-400 shrink-0">No Image</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      );
+    };
+
+    const NavItem = ({ icon, label, isActive, onClick }) => (
+      <button 
+        onClick={onClick}
+        className={`flex flex-col items-center justify-center w-full py-2 transition-colors ${isActive ? 'text-brand-600' : 'text-slate-400 hover:text-slate-600'}`}
+      >
+        <i className={`fa-solid ${icon} text-xl mb-1`}></i>
+        <span className="text-[10px] font-bold">{label}</span>
+      </button>
+    );
+
+    const App = () => {
+      const [viewState, setViewState] = useState({ view: 'home', params: {} });
+      const [reservations, setReservations] = useState(initialReservations);
+      const [customers, setCustomers] = useState(initialCustomers);
+      const [services, setServices] = useState(initialServices);
+      const [kartes, setKartes] = useState(initialKartes);
+
+      const [deferredPrompt, setDeferredPrompt] = useState(null);
+      const [isInstallable, setIsInstallable] = useState(false);
+
+      useEffect(() => {
+        const handleBeforeInstallPrompt = (e) => {
+          e.preventDefault(); // デフォルトのミニインフォバーを非表示にする
+          setDeferredPrompt(e);
+          setIsInstallable(true); // インストールボタンを表示
+        };
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      }, []);
+
+      const handleInstallClick = async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          setIsInstallable(false);
+        }
+        setDeferredPrompt(null);
+      };
+
+      const navigate = (view, params = {}) => {
+        window.scrollTo(0, 0);
+        setViewState({ view, params });
+      };
+
+      const handleSaveReservation = (newRes) => {
+        setReservations([...reservations, newRes]);
+      };
+
+      const handleSaveKarte = (newKarte) => {
+        setKartes([...kartes, newKarte]);
+      };
+
+      const renderView = () => {
+        const { view, params } = viewState;
+        switch (view) {
+          case 'home':
+            return <HomeView reservations={reservations} customers={customers} services={services} navigate={navigate} />;
+          case 'reservations':
+            return <ReservationsView reservations={reservations} customers={customers} services={services} navigate={navigate} />;
+          case 'reservation_create':
+            return <ReservationCreateView date={params.date} customers={customers} services={services} onSave={handleSaveReservation} navigate={navigate} />;
+          case 'services':
+            return <ServicesView services={services} />;
+          case 'customers':
+            return <CustomersView customers={customers} navigate={navigate} />;
+          case 'customer_detail':
+            return <CustomerDetailView id={params.id} customers={customers} reservations={reservations} kartes={kartes} services={services} navigate={navigate} />;
+          case 'karte_create':
+            return <KarteCreateView customerId={params.customerId} customers={customers} onSave={handleSaveKarte} navigate={navigate} />;
+          case 'karte_detail':
+            return <KarteDetailView id={params.id} kartes={kartes} customers={customers} navigate={navigate} />;
+          default:
+            return <HomeView reservations={reservations} customers={customers} services={services} navigate={navigate} />;
+        }
+      };
+
+      // Views that should hide the bottom navigation
+      const hideNavViews = ['reservation_create', 'karte_create', 'customer_detail', 'karte_detail'];
+      const showNav = !hideNavViews.includes(viewState.view);
+
+      const mainNavItems = [
+        { id: 'home', icon: 'fa-house', label: 'ホーム' },
+        { id: 'reservations', icon: 'fa-calendar-days', label: '予約' },
+        { id: 'customers', icon: 'fa-users', label: '顧客' },
+        { id: 'services', icon: 'fa-scissors', label: 'メニュー' },
+      ];
+
+      return (
+        <div className="flex h-screen overflow-hidden bg-slate-50 w-full max-w-md mx-auto md:max-w-4xl shadow-2xl relative">
+          
+          {/* Sidebar for Desktop */}
+          <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 h-full shrink-0 z-50">
+            <div className="p-6 pb-2 border-b border-slate-100">
+              <h1 className="text-2xl font-black text-brand-700 tracking-tight">Salon<span className="text-slate-800">Reserve</span></h1>
+            </div>
+            <nav className="flex-1 p-4 space-y-2">
+              {mainNavItems.map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => navigate(item.id)}
+                  className={`flex items-center w-full px-4 py-3 rounded-xl transition-all ${
+                    viewState.view === item.id || (viewState.view.startsWith(item.id) && item.id !== 'home')
+                      ? 'bg-brand-50 text-brand-700 font-bold' 
+                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800 font-medium'
+                  }`}
+                >
+                  <i className={`fa-solid ${item.icon} w-6 text-center mr-3 text-lg`}></i>
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+          </aside>
+
+          {/* Main Content Area */}
+          <main className="flex-1 h-full overflow-y-auto relative bg-slate-50 md:rounded-r-2xl">
+            {}
+            {isInstallable && (
+              <div className="bg-brand-600 text-white px-4 py-3 flex justify-between items-center shadow-md sticky top-0 z-50">
+                <div className="flex items-center text-sm font-medium">
+                  <i className="fa-solid fa-mobile-screen-button mr-2 text-lg"></i>
+                  ホーム画面に追加してアプリ化
+                </div>
+                <button 
+                  onClick={handleInstallClick}
+                  className="bg-white text-brand-700 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-brand-50 active:scale-95 transition-all"
+                >
+                  追加する
+                </button>
+              </div>
+            )}
+            {renderView()}
+          </main>
+
+          {/* Bottom Navigation for Mobile */}
+          {showNav && (
+            <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 pb-safe z-50 flex justify-around px-2 pb-6 pt-2">
+              {mainNavItems.map(item => (
+                <NavItem 
+                  key={item.id}
+                  icon={item.icon} 
+                  label={item.label} 
+                  isActive={viewState.view === item.id || (viewState.view.startsWith(item.id) && item.id !== 'home')} 
+                  onClick={() => navigate(item.id)} 
+                />
+              ))}
+            </nav>
+          )}
+
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        // 単一ファイル構成でPWA要件を満たすためのService Workerを動的生成
+        const swCode = `
+          self.addEventListener('install', (e) => self.skipWaiting());
+          self.addEventListener('activate', (e) => self.clients.claim());
+          self.addEventListener('fetch', (e) => {
+            // モック: ネットワークを通し、失敗時はオフラインエラーを回避
+            e.respondWith(fetch(e.request).catch(() => new Response('Offline mode')));
+          });
+        `;
+        const blob = new Blob([swCode], { type: 'application/javascript' });
+        const swUrl = URL.createObjectURL(blob);
+        
+        navigator.serviceWorker.register(swUrl)
+          .then(() => console.log('Service Worker for PWA registered.'))
+          .catch(err => console.log('Service Worker skipped in this environment (expected if sandboxed).'));
+      });
+    }
+  </script>
+</body>
+</html>
